@@ -61,6 +61,32 @@ impl MlxArray {
         Self::from_raw(ptr)
     }
 
+    pub fn from_f16(data: &[half::f16], shape: &[i32]) -> Self {
+        let ptr = unsafe {
+            ffi::mlx_array_new_data(
+                data.as_ptr() as *const _,
+                shape.as_ptr(),
+                shape.len() as i32,
+                ffi::mlx_dtype::MLX_FLOAT16,
+            )
+        };
+        debug_assert!(!ptr.is_null());
+        Self::from_raw(ptr)
+    }
+
+    pub fn from_bf16(data: &[half::bf16], shape: &[i32]) -> Self {
+        let ptr = unsafe {
+            ffi::mlx_array_new_data(
+                data.as_ptr() as *const _,
+                shape.as_ptr(),
+                shape.len() as i32,
+                ffi::mlx_dtype::MLX_BFLOAT16,
+            )
+        };
+        debug_assert!(!ptr.is_null());
+        Self::from_raw(ptr)
+    }
+
     pub fn from_i64(data: &[i64], shape: &[i32]) -> Self {
         let ptr = unsafe {
             ffi::mlx_array_new_data(

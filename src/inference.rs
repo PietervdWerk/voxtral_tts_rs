@@ -53,6 +53,13 @@ impl VoxtralTTS {
             config.n_heads,
             config.vocab_size,
         );
+        if let Some(quant) = config.quantization_config()? {
+            tracing::info!(
+                "Quantized checkpoint detected: {}-bit weights (group_size={})",
+                quant.bits,
+                quant.group_size
+            );
+        }
 
         // Load tokenizer (cap to model vocab_size to avoid OOB on tok_embeddings)
         let tokenizer = TekkenTokenizer::from_dir(model_dir, Some(config.vocab_size))?;
@@ -99,11 +106,17 @@ impl VoxtralTTS {
         for i in 0..n_voice_frames {
             embeddings_data.push(voice_embedding.select(0, i as i64));
         }
-        embeddings_data.push(self.backbone.embed_text_token(crate::NEXT_AUDIO_TEXT_TOKEN_ID));
+        embeddings_data.push(
+            self.backbone
+                .embed_text_token(crate::NEXT_AUDIO_TEXT_TOKEN_ID),
+        );
         for &token_id in &text_tokens {
             embeddings_data.push(self.backbone.embed_text_token(token_id as i64));
         }
-        embeddings_data.push(self.backbone.embed_text_token(crate::REPEAT_AUDIO_TEXT_TOKEN_ID));
+        embeddings_data.push(
+            self.backbone
+                .embed_text_token(crate::REPEAT_AUDIO_TEXT_TOKEN_ID),
+        );
         embeddings_data.push(self.backbone.embed_text_token(crate::BEGIN_AUDIO_TOKEN_ID));
 
         let prefix_embeddings = Tensor::stack(&embeddings_data, 0).unsqueeze(0);
@@ -290,13 +303,17 @@ impl VoxtralTTS {
             for i in 0..n_voice_frames {
                 embeddings_data.push(voice_embedding.select(0, i as i64));
             }
-            embeddings_data
-                .push(self.backbone.embed_text_token(crate::NEXT_AUDIO_TEXT_TOKEN_ID));
+            embeddings_data.push(
+                self.backbone
+                    .embed_text_token(crate::NEXT_AUDIO_TEXT_TOKEN_ID),
+            );
             for &token_id in &text_tokens {
                 embeddings_data.push(self.backbone.embed_text_token(token_id as i64));
             }
-            embeddings_data
-                .push(self.backbone.embed_text_token(crate::REPEAT_AUDIO_TEXT_TOKEN_ID));
+            embeddings_data.push(
+                self.backbone
+                    .embed_text_token(crate::REPEAT_AUDIO_TEXT_TOKEN_ID),
+            );
             embeddings_data.push(self.backbone.embed_text_token(crate::BEGIN_AUDIO_TOKEN_ID));
 
             let prefix_embeddings = Tensor::stack(&embeddings_data, 0).unsqueeze(0);

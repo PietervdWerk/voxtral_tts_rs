@@ -217,6 +217,14 @@ impl Tensor {
         Tensor::from_tch(tch::Tensor::from_slice(data))
     }
 
+    pub fn from_slice_f16(data: &[half::f16]) -> Self {
+        Tensor::from_tch(tch::Tensor::from_slice(data))
+    }
+
+    pub fn from_slice_bf16(data: &[half::bf16]) -> Self {
+        Tensor::from_tch(tch::Tensor::from_slice(data))
+    }
+
     pub fn from_slice_i64(data: &[i64]) -> Self {
         Tensor::from_tch(tch::Tensor::from_slice(data))
     }
@@ -685,6 +693,18 @@ impl Tensor {
     pub fn from_slice_f32(data: &[f32]) -> Self {
         let shape = [data.len() as i32];
         Tensor::from_mlx(crate::backend::mlx::array::MlxArray::from_f32(data, &shape))
+    }
+
+    pub fn from_slice_f16(data: &[half::f16]) -> Self {
+        let shape = [data.len() as i32];
+        Tensor::from_mlx(crate::backend::mlx::array::MlxArray::from_f16(data, &shape))
+    }
+
+    pub fn from_slice_bf16(data: &[half::bf16]) -> Self {
+        let shape = [data.len() as i32];
+        Tensor::from_mlx(crate::backend::mlx::array::MlxArray::from_bf16(
+            data, &shape,
+        ))
     }
 
     pub fn from_slice_i64(data: &[i64]) -> Self {
