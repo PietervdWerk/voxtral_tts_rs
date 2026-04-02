@@ -1,6 +1,6 @@
 # Rust CLI and API server for Voxtral TTS from Mistral
 
-Rust implemenation of [Voxtral-4B-TTS](https://huggingface.co/mistralai/Voxtral-4B-TTS-2603) — Mistral AI's 4B-parameter text-to-speech model. Runs on macOS (Apple Silicon via MLX) and Linux (CPU or CUDA via libtorch). No Python required. Includes both CLI and API server. Ready for agent harness.
+Rust implemenation of [Voxtral-4B-TTS](https://huggingface.co/mistralai/Voxtral-4B-TTS-2603) — Mistral AI's 4B-parameter text-to-speech model. Runs on macOS (Apple Silicon via MLX) and Linux (CPU or CUDA via libtorch). Supports the full BF16 checkpoint as well as 4-bit and 6-bit quantized checkpoints that store packed `weight` + `scales` + optional `biases` tensors in safetensors. No Python required. Includes both CLI and API server. Ready for agent harness.
 
 ## Quick Start
 
@@ -30,6 +30,19 @@ bash <(curl -sSf https://raw.githubusercontent.com/second-state/voxtral_tts_rs/m
 ```
 
 This downloads `consolidated.safetensors` (8 GB), `params.json`, `tekken.json`, and 20 voice embeddings into `models/voxtral-4b-tts/`.
+
+Quantized checkpoints are also supported when `params.json` includes:
+
+```json
+{
+  "quantization": {
+    "bits": 4,
+    "group_size": 64
+  }
+}
+```
+
+or the equivalent `quantization_config` alias. During load, packed quantized weights are dequantized back to BF16 automatically before inference.
 
 ### 3. Copy voice embeddings to the model folder
 

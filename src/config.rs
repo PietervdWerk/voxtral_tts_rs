@@ -33,6 +33,18 @@ pub struct VoxtralConfig {
     /// Multimodal configuration (codec + acoustic transformer).
     #[serde(default)]
     pub multimodal: Option<MultimodalConfig>,
+    /// Optional quantization configuration for quantized checkpoints.
+    #[serde(default, alias = "quantization_config")]
+    pub quantization: Option<QuantizationConfig>,
+}
+
+/// Weight quantization configuration for quantized checkpoints.
+#[derive(Debug, Clone, Deserialize)]
+pub struct QuantizationConfig {
+    /// Number of bits per weight value.
+    pub bits: usize,
+    /// Number of input features sharing one scale/bias pair.
+    pub group_size: usize,
 }
 
 fn default_rope_theta() -> f64 {
@@ -286,6 +298,18 @@ impl VoxtralConfig {
         Self::from_file(&model_dir.join("params.json"))
     }
 
+    /// Get the quantization config when this model is quantized.
+    pub fn quantization_config(&self) -> Result<Option<&QuantizationConfig>> {
+        match self.quantization.as_ref() {
+            Some(config) if config.bits == 4 || config.bits == 6 => Ok(Some(config)),
+            Some(config) => Err(VoxtralError::Config(format!(
+                "Unsupported quantization bits {}. Only 4-bit and 6-bit checkpoints are supported",
+                config.bits
+            ))),
+            None => Ok(None),
+        }
+    }
+
     /// Get the acoustic transformer config, or defaults.
     pub fn acoustic_transformer_config(&self) -> AcousticTransformerConfig {
         self.multimodal
@@ -346,5 +370,33 @@ impl VoxtralConfig {
             });
         config.resolve_str_fields();
         config
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::VoxtralConfig;
+
+    #[test]
+    fn parses_quantization_config_alias() {
+        let json = r#"{
+            "dim": 3072,
+            "n_layers": 26,
+            "n_heads": 24,
+            "n_kv_heads": 8,
+            "head_dim": 128,
+            "hidden_dim": 8192,
+            "vocab_size": 131072,
+            "norm_eps": 1e-5,
+            "quantization_config": {
+                "bits": 4,
+                "group_size": 64
+            }
+        }"#;
+
+        let config: VoxtralConfig = serde_json::from_str(json).unwrap();
+        let quant = config.quantization_config().unwrap().unwrap();
+        assert_eq!(quant.bits, 4);
+        assert_eq!(quant.group_size, 64);
     }
 }
