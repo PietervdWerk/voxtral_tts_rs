@@ -178,9 +178,10 @@ fn load_quantized_weights(
                     }
                 } else if tensors.tensor(&qweight_name).is_ok() {
                     return Err(VoxtralError::ModelLoad(format!(
-                        "Unsupported quantized tensor format for {} in {}. Expected packed {prefix}.weight + .scales [+ .biases]",
+                        "Unsupported quantized tensor format for {} in {}. Found a .qweight tensor suffix instead of .weight. This loader only supports the packed {}.weight + .scales [+ .biases] layout",
                         prefix,
-                        path.display()
+                        path.display(),
+                        prefix
                     )));
                 }
             }
@@ -262,6 +263,13 @@ fn dequantize_affine_tensor(
     }
 
     let packed = decode_u32(weight.data(), weight.dtype())?;
+    if scales_shape[0] != out_features {
+        return Err(VoxtralError::ModelLoad(format!(
+            "Quantization scales shape {:?} does not match weight output dim {}",
+            scales_shape, out_features
+        )));
+    }
+
     let scale_values = decode_tensor_as_f32(scales)?;
     let bias_values = match biases {
         Some(biases) => {
@@ -276,13 +284,6 @@ fn dequantize_affine_tensor(
         }
         None => vec![0.0; scale_values.len()],
     };
-
-    if scales_shape[0] != out_features {
-        return Err(VoxtralError::ModelLoad(format!(
-            "Quantization scales shape {:?} does not match weight output dim {}",
-            scales_shape, out_features
-        )));
-    }
 
     let dequantized = dequantize_affine_packed_values(
         &packed,
@@ -311,7 +312,7 @@ fn dequantize_affine_packed_values(
     bits: usize,
     group_size: usize,
 ) -> Result<Vec<f32>> {
-    if bits != 4 && bits != 6 {
+    if !QuantizationConfig::supports_bits(bits) {
         return Err(VoxtralError::ModelLoad(format!(
             "Unsupported quantization bits {}. Only 4-bit and 6-bit checkpoints are supported",
             bits
@@ -328,13 +329,15 @@ fn dequantize_affine_packed_values(
     let mut values = vec![0.0f32; out_features * in_features];
 
     for out_idx in 0..out_features {
+        let packed_row_offset = out_idx * packed_in;
+        let quant_row_offset = out_idx * n_groups;
         for in_idx in 0..in_features {
             let group_idx = in_idx / group_size;
-            let packed_word = packed[out_idx * packed_in + in_idx / pack_factor];
+            let packed_word = packed[packed_row_offset + in_idx / pack_factor];
             let shift = ((in_idx % pack_factor) * bits) as u32;
             let q = (packed_word >> shift) & mask;
-            let scale = scales[out_idx * n_groups + group_idx];
-            let bias = biases[out_idx * n_groups + group_idx];
+            let scale = scales[quant_row_offset + group_idx];
+            let bias = biases[quant_row_offset + group_idx];
             values[out_idx * in_features + in_idx] = q as f32 * scale + bias;
         }
     }
@@ -433,7 +436,9 @@ fn decode_u32(data: &[u8], dtype: SafeDType) -> Result<Vec<u32>> {
                 .map(|chunk| u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
                 .collect())
         }
-        SafeDType::I32 => Ok(decode_i32(data)?.into_iter().map(|v| v as u32).collect()),
+        SafeDType::I32 => Err(VoxtralError::ModelLoad(
+            "Found signed I32 storage for a packed quantized tensor. Packed weights must use unsigned U32 to prevent sign extension from corrupting unpacked bit-level values".to_string(),
+        )),
         other => Err(VoxtralError::ModelLoad(format!(
             "Unsupported packed quantized tensor dtype {:?}",
             other
@@ -504,6 +509,7 @@ mod tests {
         let packed_len = values.len().div_ceil(pack_factor);
         let mut packed = vec![0u32; packed_len];
         for (idx, &value) in values.iter().enumerate() {
+            // Least-significant bits first, packed left-to-right within each u32.
             let word_idx = idx / pack_factor;
             let shift = ((idx % pack_factor) * bits) as u32;
             packed[word_idx] |= value << shift;

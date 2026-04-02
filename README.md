@@ -1,6 +1,6 @@
 # Rust CLI and API server for Voxtral TTS from Mistral
 
-Rust implemenation of [Voxtral-4B-TTS](https://huggingface.co/mistralai/Voxtral-4B-TTS-2603) — Mistral AI's 4B-parameter text-to-speech model. Runs on macOS (Apple Silicon via MLX) and Linux (CPU or CUDA via libtorch). Supports the full BF16 checkpoint as well as 4-bit and 6-bit quantized checkpoints that store packed `weight` + `scales` + optional `biases` tensors in safetensors. No Python required. Includes both CLI and API server. Ready for agent harness.
+Rust implementation of [Voxtral-4B-TTS](https://huggingface.co/mistralai/Voxtral-4B-TTS-2603) — Mistral AI's 4B-parameter text-to-speech model. Runs on macOS (Apple Silicon via MLX) and Linux (CPU or CUDA via libtorch). Supports the full BF16 checkpoint as well as 4-bit and 6-bit quantized checkpoints that store packed `weight` + `scales` + optional `biases` tensors in safetensors. No Python required. Includes both CLI and API server. Ready for agent harness.
 
 ## Quick Start
 

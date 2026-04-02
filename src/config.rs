@@ -47,6 +47,18 @@ pub struct QuantizationConfig {
     pub group_size: usize,
 }
 
+impl QuantizationConfig {
+    /// Whether the provided bit width is supported by the loader.
+    pub fn supports_bits(bits: usize) -> bool {
+        matches!(bits, 4 | 6)
+    }
+
+    /// Whether this quantization bit width is supported by the loader.
+    pub fn is_supported(&self) -> bool {
+        Self::supports_bits(self.bits)
+    }
+}
+
 fn default_rope_theta() -> f64 {
     1_000_000.0
 }
@@ -301,7 +313,7 @@ impl VoxtralConfig {
     /// Get the quantization config when this model is quantized.
     pub fn quantization_config(&self) -> Result<Option<&QuantizationConfig>> {
         match self.quantization.as_ref() {
-            Some(config) if config.bits == 4 || config.bits == 6 => Ok(Some(config)),
+            Some(config) if config.is_supported() => Ok(Some(config)),
             Some(config) => Err(VoxtralError::Config(format!(
                 "Unsupported quantization bits {}. Only 4-bit and 6-bit checkpoints are supported",
                 config.bits
